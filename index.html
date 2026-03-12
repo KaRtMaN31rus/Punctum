@@ -7,84 +7,73 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: var(--tg-theme-bg-color, #0f0f0f);
-            --text: var(--tg-theme-text-color, #ffffff);
+            /* Используем системные цвета Telegram для идеальной читаемости */
+            --bg: var(--tg-theme-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #000000);
             --hint: var(--tg-theme-hint-color, #707070);
-            --accent: var(--tg-theme-button-color, #50a8eb);
-            --card: rgba(255, 255, 255, 0.05);
+            --accent: var(--tg-theme-button-color, #3390ec);
+            --accent-text: var(--tg-theme-button-text-color, #ffffff);
+            --secondary: rgba(0, 0, 0, 0.05);
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
             background-color: var(--bg); color: var(--text);
-            margin: 0; padding: 0; overflow-x: hidden;
+            margin: 0; padding: 0; transition: all 0.2s ease;
         }
-        .container { padding: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .timer-display { font-size: 82px; font-weight: 200; letter-spacing: -4px; margin: 20px 0; }
+        .container { padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .timer-display { font-size: 80px; font-weight: 200; margin: 20px 0; color: var(--text); }
+        .tabs { display: flex; width: 100%; border-bottom: 1px solid var(--secondary); }
+        .tab { flex: 1; text-align: center; padding: 15px; color: var(--hint); cursor: pointer; font-size: 14px; }
+        .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); font-weight: bold; }
         
-        /* Tabs */
-        .tabs { display: flex; justify-content: space-around; border-bottom: 1px solid var(--card); margin-bottom: 20px; }
-        .tab { padding: 10px 20px; color: var(--hint); cursor: pointer; font-size: 14px; text-transform: uppercase; }
-        .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-
-        /* Forms */
-        .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
-        input, textarea, select {
-            width: 100%; background: rgba(255,255,255,0.08); border: none; 
-            border-radius: 10px; padding: 12px; color: #fff; margin-bottom: 12px; box-sizing: border-box;
+        .card { width: 100%; max-width: 400px; margin-top: 20px; text-align: center; }
+        .desc { font-size: 14px; color: var(--hint); margin-bottom: 20px; line-height: 1.4; }
+        
+        label { display: block; text-align: left; font-size: 12px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+        select, input, textarea {
+            width: 100%; padding: 12px; border: 1px solid var(--secondary); border-radius: 10px;
+            background: var(--secondary); color: var(--text); margin-bottom: 15px; box-sizing: border-box; font-size: 16px;
         }
-        h4 { margin: 0 0 8px 0; font-size: 14px; color: var(--accent); }
-        p { font-size: 12px; color: var(--hint); margin: 0 0 12px 0; }
 
         .btn {
-            width: 100%; padding: 14px; border: none; border-radius: 12px;
-            background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            background: var(--accent); color: var(--accent-text); font-weight: 600; cursor: pointer;
         }
-        .btn-stop { background: #eb4034; margin-top: 10px; }
+        .btn-stop { background: #e53935; margin-top: 10px; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="tabs">
-        <div class="tab active" onclick="showTab('focus')">Фокус</div>
-        <div class="tab" onclick="showTab('tasks')">Задачи</div>
+        <div class="tab active" id="tab-focus" onclick="showTab('focus')">ФОКУС</div>
+        <div class="tab" id="tab-tasks" onclick="showTab('tasks')">ЗАДАЧИ</div>
     </div>
 
-    <div id="focus" class="container">
-        <div class="header">
-            <div class="timer-display" id="timer">25:00</div>
-            <p id="method-desc">Выберите методику для начала работы</p>
-        </div>
-        
-        <div id="setup-timer">
-            <h4>Методика</h4>
-            <select id="method-select" onchange="updateMethodDesc()">
-                <option value="pomodoro">Pomodoro (25/5)</option>
-                <option value="flow">Flow (50/10)</option>
-                <option value="deep">Deep Work (90/20)</option>
+    <div id="focus-sec" class="container">
+        <div class="timer-display" id="timer">25:00</div>
+        <div class="desc" id="method-desc">Выберите методику работы</div>
+
+        <div id="setup-ui" class="card">
+            <label>Методика</label>
+            <select id="method-select" onchange="updateMethod()">
+                <option value="pomodoro">Pomodoro (25 мин)</option>
+                <option value="flow">Flow (50 мин)</option>
+                <option value="deep">Deep Work (90 мин)</option>
             </select>
             <button class="btn" onclick="startTimer()">ЗАПУСТИТЬ ТАЙМЕР</button>
         </div>
 
-        <div id="active-timer" class="hidden">
+        <div id="active-ui" class="card hidden">
             <button class="btn btn-stop" onclick="stopTimer()">ОСТАНОВИТЬ</button>
         </div>
     </div>
 
-    <div id="tasks" class="container hidden">
+    <div id="tasks-sec" class="container hidden">
         <div class="card">
-            <h4>Новая задача</h4>
-            <input type="text" id="taskTitle" placeholder="Заголовок">
-            <textarea id="taskDesc" placeholder="Описание (необязательно)"></textarea>
-            <input type="datetime-local" id="taskDeadline">
-            <div style="display:flex; gap:10px; margin-bottom:12px;">
-                <select id="taskPriority">
-                    <option value="🔴">Срочно (🔴)</option>
-                    <option value="🟡">Важно (🟡)</option>
-                    <option value="🟢" selected>Обычное (🟢)</option>
-                </select>
-            </div>
-            <button class="btn" onclick="addTask()">ДОБАВИТЬ В СПИСОК</button>
+            <label>Новая точка</label>
+            <input type="text" id="tTitle" placeholder="Заголовок">
+            <textarea id="tDesc" placeholder="Описание (опционально)"></textarea>
+            <button class="btn" onclick="addTask()">ДОБАВИТЬ</button>
         </div>
     </div>
 
@@ -92,22 +81,55 @@
         let tg = window.Telegram.WebApp;
         tg.expand();
 
-        function showTab(tabId) {
-            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(tabId).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
-        }
+        let timerInterval = null;
 
+        // Поправка текстов
         const methods = {
-            pomodoro: "Классика: 25 минут работы и 5 минут отдыха. Идеально для рутины.",
-            flow: "Золотой стандарт: 50 минут погружения для сложных задач.",
-            deep: "Глубокая работа: 90 минут для творческих и инженерных прорывов."
+            pomodoro: "25 минут работы + 5 минут отдыха.\nКлассика для борьбы с прокрастинацией.",
+            flow: "50 минут работы + 10 минут отдыха.\nДля задач, требующих погружения.",
+            deep: "90 минут работы.\nРежим максимальной концентрации (Deep Work)."
         };
 
-        function updateMethodDesc() {
-            let m = document.getElementById('method-select').value;
-            document.getElementById('method-desc').innerText = methods[m];
+        function updateMethod() {
+            document.getElementById('method-desc').innerText = methods[document.getElementById('method-select').value];
+        }
+
+        // --- ЛОГИКА СИНХРОНИЗАЦИИ ---
+        function checkExistingTimer() {
+            const params = new URLSearchParams(window.location.search);
+            const endTimeStr = params.get('end_time');
+
+            if (endTimeStr) {
+                const endTime = new Date(endTimeStr).getTime();
+                const now = new Date().getTime();
+                
+                if (endTime > now) {
+                    startVisualTimer(Math.floor((endTime - now) / 1000));
+                    document.getElementById('setup-ui').classList.add('hidden');
+                    document.getElementById('active-ui').classList.remove('hidden');
+                }
+            }
+        }
+
+        function startVisualTimer(duration) {
+            let timeLeft = duration;
+            if (timerInterval) clearInterval(timerInterval);
+
+            const updateDisplay = () => {
+                let m = Math.floor(timeLeft / 60);
+                let s = timeLeft % 60;
+                document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            };
+
+            updateDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    tg.close();
+                }
+            }, 1000);
         }
 
         function startTimer() {
@@ -121,18 +143,15 @@
             tg.close();
         }
 
-        function addTask() {
-            let data = {
-                action: "add_task_full",
-                title: document.getElementById('taskTitle').value,
-                desc: document.getElementById('taskDesc').value,
-                deadline: document.getElementById('taskDeadline').value,
-                priority: document.getElementById('taskPriority').value
-            };
-            if(!data.title) return tg.showAlert("Заголовок обязателен");
-            tg.sendData(JSON.stringify(data));
-            tg.close();
+        function showTab(id) {
+            document.getElementById('focus-sec').classList.toggle('hidden', id !== 'focus');
+            document.getElementById('tasks-sec').classList.toggle('hidden', id !== 'tasks');
+            document.getElementById('tab-focus').classList.toggle('active', id === 'focus');
+            document.getElementById('tab-tasks').classList.toggle('active', id === 'tasks');
         }
+
+        updateMethod();
+        checkExistingTimer(); // Проверяем при запуске
     </script>
 </body>
 </html>
