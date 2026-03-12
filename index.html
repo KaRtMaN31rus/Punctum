@@ -16,65 +16,55 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-            overflow-x: hidden;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
         }
-        .timer { font-size: 72px; font-weight: 200; margin: 30px 0; letter-spacing: -2px; }
-        
-        .section { width: 100%; max-width: 400px; margin-bottom: 30px; }
-        h3 { font-weight: 400; color: var(--hint); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Поле ввода и кнопки */
+        .timer { font-size: 72px; font-weight: 200; margin: 20px 0; }
+        .section { width: 100%; max-width: 400px; margin-bottom: 25px; }
+        h3 { font-size: 12px; text-transform: uppercase; color: var(--hint); letter-spacing: 1px; }
         input {
             width: 100%; padding: 12px; border: none; border-radius: 10px;
-            background: var(--input-bg); color: var(--text);
-            box-sizing: border-box; margin-bottom: 15px; outline: none;
+            background: var(--input-bg); color: var(--text); box-sizing: border-box; outline: none;
         }
-        .priority-select { display: flex; gap: 10px; margin-bottom: 15px; }
+        .priority-select { display: flex; gap: 8px; margin: 12px 0; }
         .priority-btn {
             flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px; background: transparent; cursor: pointer; color: var(--text);
+            border-radius: 8px; background: transparent; color: var(--text); cursor: pointer;
         }
         .priority-btn.active { border-color: var(--btn); background: rgba(51, 144, 236, 0.1); }
-
         .main-btn {
             width: 100%; padding: 15px; border: none; border-radius: 12px;
-            background-color: var(--btn); color: var(--btn-text);
-            font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+            background-color: var(--btn); color: var(--btn-text); font-weight: 600; cursor: pointer;
         }
-        .main-btn:active { opacity: 0.8; }
     </style>
 </head>
 <body>
 
     <div class="section" style="text-align: center;">
         <div class="timer" id="display">25:00</div>
-        <button class="main-btn" id="startBtn">FOCUS</button>
+        <button class="main-btn" id="startBtn">ФОКУС</button>
     </div>
 
     <div class="section">
-        <h3>Новая точка (Punctum)</h3>
-        <input type="text" id="taskInput" placeholder="Что нужно сделать?">
+        <h3>Новая задача</h3>
+        <input type="text" id="taskInput" placeholder="Например: Доделать чертеж">
         <div class="priority-select">
             <button class="priority-btn" data-p="🔴">🔴</button>
             <button class="priority-btn" data-p="🟡">🟡</button>
-            <button class="priority-btn" data-p="🟢">🟢</button>
+            <button class="priority-btn active" data-p="🟢">🟢</button>
         </div>
-        <button class="main-btn" id="addBtn" style="background: #2b2b2b;">ДОБАВИТЬ В СПИСОК</button>
+        <button class="main-btn" id="addBtn" style="background: #2b2b2b;">ДОБАВИТЬ</button>
+    </div>
+
+    <div class="section">
+        <button class="main-btn" id="workDaysBtn" style="background: transparent; border: 1px solid var(--hint); color: var(--hint); font-size: 12px;">НАСТРОИТЬ РАБОЧИЕ ДНИ</button>
     </div>
 
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
-        
         let selectedPriority = "🟢";
-        let timer = null;
-        let seconds = 25 * 60;
 
-        // Выбор приоритета
         document.querySelectorAll('.priority-btn').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -83,35 +73,25 @@
             };
         });
 
-        // Кнопка фокуса
-        document.getElementById('startBtn').onclick = function() {
-            if (timer) return;
-            this.innerText = "В ПРОЦЕССЕ...";
-            timer = setInterval(() => {
-                seconds--;
-                let m = Math.floor(seconds / 60);
-                let s = seconds % 60;
-                document.getElementById('display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                if (seconds <= 0) {
-                    clearInterval(timer);
-                    tg.sendData(JSON.stringify({action: "focus_done"}));
-                }
-            }, 1000);
+        document.getElementById('addBtn').onclick = () => {
+            let text = document.getElementById('taskInput').value;
+            if (!text) return tg.showAlert("Введите текст");
+            tg.sendData(JSON.stringify({action: "add_task", text: text, priority: selectedPriority}));
         };
 
-        // Кнопка добавления задачи
-        document.getElementById('addBtn').onclick = function() {
-            let text = document.getElementById('taskInput').value;
-            if (!text) {
-                tg.showAlert("Введите текст задачи");
-                return;
-            }
-            let data = {
-                action: "add_task",
-                text: text,
-                priority: selectedPriority
-            };
-            tg.sendData(JSON.stringify(data)); // Отправляем JSON строку боту
+        document.getElementById('startBtn').onclick = function() {
+            tg.sendData(JSON.stringify({action: "start_timer"}));
+            tg.close();
+        };
+
+        document.getElementById('workDaysBtn').onclick = () => {
+            tg.showPopup({
+                title: 'Рабочие дни',
+                message: 'Ты работаешь по стандартному графику Пн-Пт?',
+                buttons: [{id: 'std', type: 'default', text: 'Да, Пн-Пт'}, {id: 'all', type: 'default', text: 'Работаю каждый день'}]
+            }, (id) => {
+                if(id) tg.sendData(JSON.stringify({action: "set_days", type: id}));
+            });
         };
     </script>
 </body>
