@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PUNCTUM</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: var(--tg-theme-bg-color, #1a1a1a);
+            --text: var(--tg-theme-text-color, #ffffff);
+            --hint: var(--tg-theme-hint-color, #aaaaaa);
+            --btn: var(--tg-theme-button-color, #3390ec);
+            --btn-text: var(--tg-theme-button-text-color, #ffffff);
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .timer { font-size: 64px; font-weight: 300; margin: 40px 0; letter-spacing: -2px; }
+        .controls { display: flex; gap: 10px; width: 100%; }
+        button {
+            flex: 1; padding: 15px; border: none; border-radius: 12px;
+            background-color: var(--btn); color: var(--btn-text);
+            font-weight: bold; cursor: pointer;
+        }
+        .task-list { width: 100%; margin-top: 30px; }
+        .task-item {
+            display: flex; align-items: center; background: rgba(255,255,255,0.05);
+            margin-bottom: 8px; padding: 12px; border-radius: 10px;
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 15px; }
+        .red { background: #ff4d4d; } .yellow { background: #ffcc00; } .green { background: #00cc66; }
+    </style>
+</head>
+<body>
+    <div class="timer" id="display">25:00</div>
+    <div class="controls">
+        <button id="startBtn">FOCUS</button>
+    </div>
+
+    <div class="task-list">
+        <h3>Задачи на сегодня</h3>
+        <div class="task-item"><div class="dot red"></div> <span>Пример важной задачи</span></div>
+        <div class="task-item"><div class="dot yellow"></div> <span>Текущая задача</span></div>
+        <div class="task-item"><div class="dot green"></div> <span>Мелкое дело</span></div>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let seconds = 25 * 60;
+        let timer = null;
+
+        document.getElementById('startBtn').onclick = function() {
+            if (timer) return;
+            timer = setInterval(() => {
+                seconds--;
+                let m = Math.floor(seconds / 60);
+                let s = seconds % 60;
+                document.getElementById('display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    tg.sendData("focus_end"); // Сообщаем боту об окончании
+                    tg.close();
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
