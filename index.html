@@ -2,97 +2,137 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PUNCTUM</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: var(--tg-theme-bg-color, #1a1a1a);
+            --bg: var(--tg-theme-bg-color, #0f0f0f);
             --text: var(--tg-theme-text-color, #ffffff);
-            --hint: var(--tg-theme-hint-color, #aaaaaa);
-            --btn: var(--tg-theme-button-color, #3390ec);
-            --btn-text: var(--tg-theme-button-text-color, #ffffff);
-            --input-bg: rgba(255, 255, 255, 0.08);
+            --hint: var(--tg-theme-hint-color, #707070);
+            --accent: var(--tg-theme-button-color, #50a8eb);
+            --card: rgba(255, 255, 255, 0.05);
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
             background-color: var(--bg); color: var(--text);
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+            margin: 0; padding: 0; overflow-x: hidden;
         }
-        .timer { font-size: 72px; font-weight: 200; margin: 20px 0; }
-        .section { width: 100%; max-width: 400px; margin-bottom: 25px; }
-        h3 { font-size: 12px; text-transform: uppercase; color: var(--hint); letter-spacing: 1px; }
-        input {
-            width: 100%; padding: 12px; border: none; border-radius: 10px;
-            background: var(--input-bg); color: var(--text); box-sizing: border-box; outline: none;
+        .container { padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .timer-display { font-size: 82px; font-weight: 200; letter-spacing: -4px; margin: 20px 0; }
+        
+        /* Tabs */
+        .tabs { display: flex; justify-content: space-around; border-bottom: 1px solid var(--card); margin-bottom: 20px; }
+        .tab { padding: 10px 20px; color: var(--hint); cursor: pointer; font-size: 14px; text-transform: uppercase; }
+        .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+        /* Forms */
+        .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+        input, textarea, select {
+            width: 100%; background: rgba(255,255,255,0.08); border: none; 
+            border-radius: 10px; padding: 12px; color: #fff; margin-bottom: 12px; box-sizing: border-box;
         }
-        .priority-select { display: flex; gap: 8px; margin: 12px 0; }
-        .priority-btn {
-            flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px; background: transparent; color: var(--text); cursor: pointer;
+        h4 { margin: 0 0 8px 0; font-size: 14px; color: var(--accent); }
+        p { font-size: 12px; color: var(--hint); margin: 0 0 12px 0; }
+
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
         }
-        .priority-btn.active { border-color: var(--btn); background: rgba(51, 144, 236, 0.1); }
-        .main-btn {
-            width: 100%; padding: 15px; border: none; border-radius: 12px;
-            background-color: var(--btn); color: var(--btn-text); font-weight: 600; cursor: pointer;
-        }
+        .btn-stop { background: #eb4034; margin-top: 10px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-
-    <div class="section" style="text-align: center;">
-        <div class="timer" id="display">25:00</div>
-        <button class="main-btn" id="startBtn">ФОКУС</button>
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('focus')">Фокус</div>
+        <div class="tab" onclick="showTab('tasks')">Задачи</div>
     </div>
 
-    <div class="section">
-        <h3>Новая задача</h3>
-        <input type="text" id="taskInput" placeholder="Например: Доделать чертеж">
-        <div class="priority-select">
-            <button class="priority-btn" data-p="🔴">🔴</button>
-            <button class="priority-btn" data-p="🟡">🟡</button>
-            <button class="priority-btn active" data-p="🟢">🟢</button>
+    <div id="focus" class="container">
+        <div class="header">
+            <div class="timer-display" id="timer">25:00</div>
+            <p id="method-desc">Выберите методику для начала работы</p>
         </div>
-        <button class="main-btn" id="addBtn" style="background: #2b2b2b;">ДОБАВИТЬ</button>
+        
+        <div id="setup-timer">
+            <h4>Методика</h4>
+            <select id="method-select" onchange="updateMethodDesc()">
+                <option value="pomodoro">Pomodoro (25/5)</option>
+                <option value="flow">Flow (50/10)</option>
+                <option value="deep">Deep Work (90/20)</option>
+            </select>
+            <button class="btn" onclick="startTimer()">ЗАПУСТИТЬ ТАЙМЕР</button>
+        </div>
+
+        <div id="active-timer" class="hidden">
+            <button class="btn btn-stop" onclick="stopTimer()">ОСТАНОВИТЬ</button>
+        </div>
     </div>
 
-    <div class="section">
-        <button class="main-btn" id="workDaysBtn" style="background: transparent; border: 1px solid var(--hint); color: var(--hint); font-size: 12px;">НАСТРОИТЬ РАБОЧИЕ ДНИ</button>
+    <div id="tasks" class="container hidden">
+        <div class="card">
+            <h4>Новая задача</h4>
+            <input type="text" id="taskTitle" placeholder="Заголовок">
+            <textarea id="taskDesc" placeholder="Описание (необязательно)"></textarea>
+            <input type="datetime-local" id="taskDeadline">
+            <div style="display:flex; gap:10px; margin-bottom:12px;">
+                <select id="taskPriority">
+                    <option value="🔴">Срочно (🔴)</option>
+                    <option value="🟡">Важно (🟡)</option>
+                    <option value="🟢" selected>Обычное (🟢)</option>
+                </select>
+            </div>
+            <button class="btn" onclick="addTask()">ДОБАВИТЬ В СПИСОК</button>
+        </div>
     </div>
 
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
-        let selectedPriority = "🟢";
 
-        document.querySelectorAll('.priority-btn').forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedPriority = btn.getAttribute('data-p');
-            };
-        });
+        function showTab(tabId) {
+            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            event.currentTarget.classList.add('active');
+        }
 
-        document.getElementById('addBtn').onclick = () => {
-            let text = document.getElementById('taskInput').value;
-            if (!text) return tg.showAlert("Введите текст");
-            tg.sendData(JSON.stringify({action: "add_task", text: text, priority: selectedPriority}));
+        const methods = {
+            pomodoro: "Классика: 25 минут работы и 5 минут отдыха. Идеально для рутины.",
+            flow: "Золотой стандарт: 50 минут погружения для сложных задач.",
+            deep: "Глубокая работа: 90 минут для творческих и инженерных прорывов."
         };
 
-        document.getElementById('startBtn').onclick = function() {
-            tg.sendData(JSON.stringify({action: "start_timer"}));
+        function updateMethodDesc() {
+            let m = document.getElementById('method-select').value;
+            document.getElementById('method-desc').innerText = methods[m];
+        }
+
+        function startTimer() {
+            let m = document.getElementById('method-select').value;
+            tg.sendData(JSON.stringify({action: "start_timer", method: m}));
             tg.close();
-        };
+        }
 
-        document.getElementById('workDaysBtn').onclick = () => {
-            tg.showPopup({
-                title: 'Рабочие дни',
-                message: 'Ты работаешь по стандартному графику Пн-Пт?',
-                buttons: [{id: 'std', type: 'default', text: 'Да, Пн-Пт'}, {id: 'all', type: 'default', text: 'Работаю каждый день'}]
-            }, (id) => {
-                if(id) tg.sendData(JSON.stringify({action: "set_days", type: id}));
-            });
-        };
+        function stopTimer() {
+            tg.sendData(JSON.stringify({action: "stop_timer"}));
+            tg.close();
+        }
+
+        function addTask() {
+            let data = {
+                action: "add_task_full",
+                title: document.getElementById('taskTitle').value,
+                desc: document.getElementById('taskDesc').value,
+                deadline: document.getElementById('taskDeadline').value,
+                priority: document.getElementById('taskPriority').value
+            };
+            if(!data.title) return tg.showAlert("Заголовок обязателен");
+            tg.sendData(JSON.stringify(data));
+            tg.close();
+        }
     </script>
 </body>
 </html>
