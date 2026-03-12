@@ -3,155 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PUNCTUM</title>
+    <title>PUNCTUM Focus</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            /* Используем системные цвета Telegram для идеальной читаемости */
-            --bg: var(--tg-theme-bg-color, #ffffff);
-            --text: var(--tg-theme-text-color, #000000);
-            --hint: var(--tg-theme-hint-color, #707070);
-            --accent: var(--tg-theme-button-color, #3390ec);
-            --accent-text: var(--tg-theme-button-text-color, #ffffff);
-            --secondary: rgba(0, 0, 0, 0.05);
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-            background-color: var(--bg); color: var(--text);
-            margin: 0; padding: 0; transition: all 0.2s ease;
-        }
-        .container { padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .timer-display { font-size: 80px; font-weight: 200; margin: 20px 0; color: var(--text); }
-        .tabs { display: flex; width: 100%; border-bottom: 1px solid var(--secondary); }
-        .tab { flex: 1; text-align: center; padding: 15px; color: var(--hint); cursor: pointer; font-size: 14px; }
-        .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); font-weight: bold; }
-        
-        .card { width: 100%; max-width: 400px; margin-top: 20px; text-align: center; }
-        .desc { font-size: 14px; color: var(--hint); margin-bottom: 20px; line-height: 1.4; }
-        
-        label { display: block; text-align: left; font-size: 12px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
-        select, input, textarea {
-            width: 100%; padding: 12px; border: 1px solid var(--secondary); border-radius: 10px;
-            background: var(--secondary); color: var(--text); margin-bottom: 15px; box-sizing: border-box; font-size: 16px;
-        }
-
-        .btn {
-            width: 100%; padding: 16px; border: none; border-radius: 12px;
-            background: var(--accent); color: var(--accent-text); font-weight: 600; cursor: pointer;
-        }
-        .btn-stop { background: #e53935; margin-top: 10px; }
-        .hidden { display: none; }
+        :root { --bg: #ffffff; --text: #000000; --accent: #34a8dab; }
+        body.tg-dark { --bg: #1a1a1a; --text: #ffffff; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; transition: 0.3s; }
+        .timer-display { font-size: 80px; font-weight: 300; margin: 40px 0; font-variant-numeric: tabular-nums; }
+        .method-select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ccc; margin-bottom: 20px; font-size: 16px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; background: #34a8da; color: white; font-size: 18px; font-weight: 600; cursor: pointer; }
     </style>
 </head>
-<body>
-    <div class="tabs">
-        <div class="tab active" id="tab-focus" onclick="showTab('focus')">ФОКУС</div>
-        <div class="tab" id="tab-tasks" onclick="showTab('tasks')">ЗАДАЧИ</div>
-    </div>
+<body class="tg-light">
+    <div class="timer-display" id="timer">25:00</div>
+    
+    <select id="method" class="method-select" onchange="updateDisplay()">
+        <option value="pomodoro" data-time="25">Pomodoro (25 мин)</option>
+        <option value="flow" data-time="50">Flow (50 мин)</option>
+        <option value="deep" data-time="90">Deep Work (90 мин)</option>
+    </select>
 
-    <div id="focus-sec" class="container">
-        <div class="timer-display" id="timer">25:00</div>
-        <div class="desc" id="method-desc">Выберите методику работы</div>
-
-        <div id="setup-ui" class="card">
-            <label>Методика</label>
-            <select id="method-select" onchange="updateMethod()">
-                <option value="pomodoro">Pomodoro (25 мин)</option>
-                <option value="flow">Flow (50 мин)</option>
-                <option value="deep">Deep Work (90 мин)</option>
-            </select>
-            <button class="btn" onclick="startTimer()">ЗАПУСТИТЬ ТАЙМЕР</button>
-        </div>
-
-        <div id="active-ui" class="card hidden">
-            <button class="btn btn-stop" onclick="stopTimer()">ОСТАНОВИТЬ</button>
-        </div>
-    </div>
-
-    <div id="tasks-sec" class="container hidden">
-        <div class="card">
-            <label>Новая точка</label>
-            <input type="text" id="tTitle" placeholder="Заголовок">
-            <textarea id="tDesc" placeholder="Описание (опционально)"></textarea>
-            <button class="btn" onclick="addTask()">ДОБАВИТЬ</button>
-        </div>
-    </div>
+    <button class="btn" id="mainBtn" onclick="toggleTimer()">ЗАПУСТИТЬ ТАЙМЕР</button>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         tg.expand();
+        if (tg.colorScheme === 'dark') document.body.classList.add('tg-dark');
 
-        let timerInterval = null;
+        let timerInterval;
+        let endTime = null;
 
-        // Поправка текстов
-        const methods = {
-            pomodoro: "25 минут работы + 5 минут отдыха.\nКлассика для борьбы с прокрастинацией.",
-            flow: "50 минут работы + 10 минут отдыха.\nДля задач, требующих погружения.",
-            deep: "90 минут работы.\nРежим максимальной концентрации (Deep Work)."
-        };
+        // 1. Проверяем, передал ли бот время окончания через URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverEndTime = urlParams.get('end_time');
 
-        function updateMethod() {
-            document.getElementById('method-desc').innerText = methods[document.getElementById('method-select').value];
+        if (serverEndTime) {
+            endTime = new Date(serverEndTime);
+            startCountdown();
         }
 
-        // --- ЛОГИКА СИНХРОНИЗАЦИИ ---
-        function checkExistingTimer() {
-            const params = new URLSearchParams(window.location.search);
-            const endTimeStr = params.get('end_time');
-
-            if (endTimeStr) {
-                const endTime = new Date(endTimeStr).getTime();
-                const now = new Date().getTime();
-                
-                if (endTime > now) {
-                    startVisualTimer(Math.floor((endTime - now) / 1000));
-                    document.getElementById('setup-ui').classList.add('hidden');
-                    document.getElementById('active-ui').classList.remove('hidden');
-                }
-            }
+        function updateDisplay() {
+            if (timerInterval) return;
+            const select = document.getElementById('method');
+            const mins = select.options[select.selectedIndex].getAttribute('data-time');
+            document.getElementById('timer').innerText = `${mins}:00`;
         }
 
-        function startVisualTimer(duration) {
-            let timeLeft = duration;
-            if (timerInterval) clearInterval(timerInterval);
+        function toggleTimer() {
+            const select = document.getElementById('method');
+            const method = select.value;
+            const mins = parseInt(select.options[select.selectedIndex].getAttribute('data-time'));
+            
+            // Отправляем боту команду на запуск
+            tg.sendData(JSON.stringify({
+                action: "start_timer",
+                method: method,
+                duration: mins
+            }));
+            tg.close();
+        }
 
-            const updateDisplay = () => {
-                let m = Math.floor(timeLeft / 60);
-                let s = timeLeft % 60;
-                document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            };
+        function startCountdown() {
+            document.getElementById('mainBtn').innerText = "ТАЙМЕР ЗАПУЩЕН";
+            document.getElementById('mainBtn').disabled = true;
+            document.getElementById('method').disabled = true;
 
-            updateDisplay();
             timerInterval = setInterval(() => {
-                timeLeft--;
-                updateDisplay();
-                if (timeLeft <= 0) {
+                const now = new Date();
+                const diff = endTime - now;
+
+                if (diff <= 0) {
                     clearInterval(timerInterval);
-                    tg.close();
+                    document.getElementById('timer').innerText = "00:00";
+                    return;
                 }
+
+                const m = Math.floor(diff / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('timer').innerText = 
+                    `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             }, 1000);
         }
-
-        function startTimer() {
-            let m = document.getElementById('method-select').value;
-            tg.sendData(JSON.stringify({action: "start_timer", method: m}));
-            tg.close();
-        }
-
-        function stopTimer() {
-            tg.sendData(JSON.stringify({action: "stop_timer"}));
-            tg.close();
-        }
-
-        function showTab(id) {
-            document.getElementById('focus-sec').classList.toggle('hidden', id !== 'focus');
-            document.getElementById('tasks-sec').classList.toggle('hidden', id !== 'tasks');
-            document.getElementById('tab-focus').classList.toggle('active', id === 'focus');
-            document.getElementById('tab-tasks').classList.toggle('active', id === 'tasks');
-        }
-
-        updateMethod();
-        checkExistingTimer(); // Проверяем при запуске
     </script>
 </body>
 </html>
